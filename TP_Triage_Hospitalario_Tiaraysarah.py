@@ -10,63 +10,56 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
+BASE_CSV = "pacientes_final.csv"        # archivo esperado con pacientes
+ECG_MANIFEST = "ecg_manifest.csv"       # opcional: lista de ecg (paciente_id;ecg_file) -> delimitador ; o ajustar
+OUTPUT_PROCESSED = "pacientes_procesados.csv"
+
+
 #pandas: manejar tablas (CSV), numpy: cálculos numéricos, matplotlib: hacer gráficos, os: manejar archivos en carpetas
 
-#(1)vamos a tener un archivo pacientes_final.csv con columnas como:id, nombre, apellido, edad, peso, altura, presion_sistolica, presion_diastolica, spo2, frecuencia_cardiaca
+#vamos a tener un archivo pacientes_final.csv con columnas como:id, nombre, apellido, edad, peso, altura, presion_sistolica, presion_diastolica, spo2, frecuencia_cardiaca
 #ecg es archivo csv 
-def analizar_ecg(nombre_archivo): 
-    valores=np.loadtxt(nombre_archivo)#abre el archivo txt y pasa todos los numeros que ve a una lista
-    maximo=np.max(valores)
-    minimo=np.min(valores)
-    promedio=np.mean(valores) 
-    return maximo, minimo, promedio 
 
 def verificar_paciente_id(paciente_id):#verificar si esta correcto paciente_id 
     if len(paciente_id)!=5: 
         return False
-    if paciente_id[0]!='P' or paciente_id[0]!='P': 
+    if paciente_id[0]!='P': 
         return False 
     for i in range(1,5,1): 
         if not paciente_id[i].isdigit():
             return False
-    return True
-
-#puede tener algun error el nombre del paciente????
+    return paciente_id
 
 def verificar_valor(valor, palabras_validas, tipo, minimo, maximo): 
-    #1. Verificar que no este vacio 
-    if valor=='':
-        return False
-    #2. Eliminar los espacios 
-    valor=valor.replace(' ','').lower().replace(',','.').replace('ñ','n')
-    #3. Quitar las palabras validas 
-    for p in palabras_validas: 
-        if valor.startswith(p): 
-            valor=valor[len(p):]#empieza despues de palabras validas
+    if valor == '' or valor is None:
+        return None
+
+    # limpiar texto
+    valor = valor.replace(' ', '').lower().replace(',', '.').replace('ñ', 'n')
+    
+    # quitar las palabras válidas si las tiene
+    for p in palabras_validas:
+        if valor.startswith(p):
+            valor = valor[len(p):]
             break
         elif valor.endswith(p):
-            valor=valor[:-len(p)]#termina hasta ver palabras validas 
+            valor = valor[:-len(p)]
             break
-    #4. Verificar que todos los caracteres sean numeros 
-    #en caso de que el tipo sea un int 
-    if tipo=='int': 
-        if not valor.isdigit(): 
-            return False 
-        valor=int(valor)
-    #en caso de que el tipo sea un float 
-    elif tipo=='float': 
-        if valor.count('.')>1: #verificar que solamente exista un punto 
-            return False 
-        else: 
-            for i in valor: 
-                if (i<'0' or i>'9') and i !='.': 
-                    return False 
-            valor=float(valor)
-    #5. Verificar rango 
-    if valor>=minimo and valor<=maximo:
-        return True 
-    else: 
-        return False
+
+    # convertir a número
+    try:
+        if tipo == 'int':
+            valor = int(valor)
+        elif tipo == 'float':
+            valor = float(valor)
+    except ValueError:
+        return None
+
+    # verificar rango
+    if minimo <= valor <= maximo:
+        return valor
+    else:
+        return False 
 
 def calcular_IMC(peso, altura):
 
@@ -85,7 +78,7 @@ def calcular_RCG(glucosa,colesterol):
     RCG=glucosa/colesterol
     return RCG
 
-# (3)Función para clasificar el triage según los valores del paciente
+# Función para clasificar el triage según los valores del paciente
 def clasificar_triage(paciente):
     
     """
@@ -125,6 +118,7 @@ def clasificar_triage(paciente):
     #azul(saludable)
     return "azul"
 
+
 def analisis_pacientes(): 
  with open("pacientes_final.csv",'r',encoding='utf-8-sig') as file: #abro el archivo para leerlo 
     lector=csv.DictReader(file) 
@@ -145,7 +139,9 @@ def analisis_pacientes():
         colesterol=verificar_valor(fila['colesterol_mg_dL'],['colesterol','mg/dl','mgdl'],'int',50,500)
         pulsoximetro_r=verificar_valor(fila['pulsoximetro_r_perc'],['%','pulsoximetro'],'int',50,100)
         pulsoximetro_ir=verificar_valor(fila['pulsoximetro_ir_perc'],['%','pulsoximetro'],'int',50,100)
-        if all ([edad,peso,altura,sistolica,diastolica,temperatura,frecuencia,nivel_oxigeno,glucosa,colesterol,pulsoximetro_r,pulsoximetro_ir]): #la funcion all devuelve true si en la lista no hay False, 0,none,''. 
+        if all ([paciente_id,edad,peso,altura,sistolica,diastolica,temperatura,frecuencia,nivel_oxigeno,glucosa,colesterol,pulsoximetro_r,pulsoximetro_ir]): #la funcion all devuelve true si en la lista no hay False, 0,none,''. 
+            fila['paciente_id']=paciente_id
+            fila['nombre_paciente']=nombre
             fila['edad']=edad
             fila['peso']=peso
             fila['altura']=altura
@@ -170,11 +166,11 @@ def analisis_pacientes():
     return datos_filtrados 
     
 
-#(2)poner lo de import funciones.py(estas van a ser las funciones que nosotras creamos para que quede mas prolijo)
+#poner lo de import funciones.py(estas van a ser las funciones que nosotras creamos para que quede mas prolijo)
 def analizar_ecg():
     resultados=[]
     with open ("ecg_manifest.csv",'r',encoding='utf-8')as file: #abro el archivo para leerlo 
-        lector=csv.DictReader(file,delimiter=';')
+        lector=csv.DictReader(file)
         ecg_pacientes=list(lector)
         for fila in ecg_pacientes: 
             with open(fila['ecg_file'],'r',encoding='utf-8')as archivo_ecg:
@@ -187,10 +183,7 @@ def analizar_ecg():
     return resultados 
 
 
-#3) 
-#crear un grafico de barras con el recuento de pacientes por color 
-
-#b) ------------------ GRAFICO DE BARRAS ------------------
+# ------------------ GRAFICO DE BARRAS ------------------
 # Crear un DataFrame con los pacientes validados
 
 datos_filtrados=analisis_pacientes()
@@ -199,19 +192,39 @@ df = pd.DataFrame(datos_filtrados)
 # Aplicar la clasificación del triage y guardarla en una nueva columna
 df['Triage'] = df.apply(clasificar_triage, axis=1)
 
-# Contar la cantidad de pacientes por color
-conteo_colores = df['Triage'].value_counts()
+print(df[['temperatura_C', 'frecuencia_cardiaca_lpm', 'nivel_oxigeno_perc', 'PAM', 'IMC']].head())
+print(df['Triage'].value_counts())
 
-#crear grafico de barras
+df.loc[0, ['frecuencia_cardiaca_lpm', 'PAM']] = 0  # Forzamos el primer paciente como muerto
+df['Triage'] = df.apply(clasificar_triage, axis=1)
+
+# Contar la cantidad de pacientes por color y ordenarlos del más grave al más leve
+orden_colores = ["negro", "rojo", "naranja", "amarillo", "verde", "azul"]
+conteo_colores = df['Triage'].value_counts().reindex(orden_colores, fill_value=0)
+
+# Crear el mapa de colores
+colores_map = {
+    "negro": "black",
+    "rojo": "red",
+    "naranja": "orange",
+    "amarillo": "yellow",
+    "verde": "green",
+    "azul": "blue"
+}
+
 plt.figure(figsize=(8,5))
-plt.bar(conteo_colores.index, conteo_valores.values, color=["negro","rojo","naranja","amarillo","verde","azul"])
-plt.title('cantidad de pacientes por categoria de triage')
-plt.xlabel('categoria')
-plt.ylabel('cantidad de pacientes')
-plt.grid(axis='y', lineastyle="--",alpha=0.6)
+plt.bar(conteo_colores.index,conteo_colores.values,color=[colores_map.get(c.lower(), "gray") for c in conteo_colores.index])
+plt.title('Cantidad de pacientes por categoría de triage')
+plt.xlabel('Categoría')
+plt.ylabel('Cantidad de pacientes')
+plt.grid(axis='y', linestyle="--", alpha=0.6)
 plt.show()
 
-#c) ------------------ GRAFICO DE LINEAS (ECG) ------------------
+# ------------------ GRAFICO DE LINEAS (ECG) ------------------
+
+# Analizar los archivos ECG y guardarlos en una lista
+ecg_pacientes = analizar_ecg()
+
 # Ejemplo: mostrar la señal ECG de un paciente específico
 paciente_id_elegido=input("Ingrese el ID del paciente para ver su ECG (ej. P0001): ")
 
@@ -230,14 +243,14 @@ if paciente_ecg:
 else:
     print("no se encontro el archivo ecg para ese paciente")
 
-# d) ------------------ GRAFICO DE DISPERSION ------------------
+# ------------------ GRAFICO DE DISPERSION ------------------
 
 colores_map["negro","rojo","naranja","amarillo","verde","azul"]
 
 plt.figure(figsize=(8,6))
-for color in df['traige'].unique():
-    subset=df[df['traige']==color]
-    plt.scatter(subset['imc'],subset['pam'], c=colores_map[color], label=color, alpha=0.07)
+for color in df['triage'].unique():
+    subset=df[df['triage']==color]
+    plt.scatter(subset['IMC'],subset['PAM'], c=colores_map[color], label=color, alpha=0.07)
 
 plt.title('Relación entre IMC y PAM por Clasificación de Triage')
 plt.xlabel('IMC (Índice de Masa Corporal)')
@@ -246,7 +259,7 @@ plt.legend()
 plt.grid(True, linestyle='--', alpha=0.5)
 plt.show()
 
-# e)------------------ BUSQUEDA DE PACIENTES ------------------
+#  ------------------ BUSQUEDA DE PACIENTES ------------------
 busqueda = input("Ingrese el ID o Apellido del paciente: ").strip().lower()
 
 resultado = df[df['paciente_id'].str.lower().str.contains(busqueda) | df['nombre_paciente'].str.lower().str.contains(busqueda)]
