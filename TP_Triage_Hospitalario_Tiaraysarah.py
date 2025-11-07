@@ -15,8 +15,6 @@ ECG_MANIFEST = "ecg_manifest.csv"       # opcional: lista de ecg (paciente_id;ec
 OUTPUT_PROCESSED = "pacientes_procesados.csv"
 
 
-#pandas: manejar tablas (CSV), numpy: cálculos numéricos, matplotlib: hacer gráficos, os: manejar archivos en carpetas
-
 #vamos a tener un archivo pacientes_final.csv con columnas como:id, nombre, apellido, edad, peso, altura, presion_sistolica, presion_diastolica, spo2, frecuencia_cardiaca
 #ecg es archivo csv 
 
@@ -118,9 +116,9 @@ def clasificar_triage(paciente):
     #azul(saludable)
     return "azul"
 
-
+path='C:\\Users\\tiara\\Downloads\\facultad\\IRI\\IRI 2K25\\TP_IRI\\pacientes_final.csv'
 def analisis_pacientes(): 
- with open("pacientes_final.csv",'r',encoding='utf-8-sig') as file: #abro el archivo para leerlo 
+ with open(path,'r',encoding='utf-8-sig') as file: #abro el archivo para leerlo 
     lector=csv.DictReader(file) 
     datos_pacientes=list(lector) #guardo el archivo en una lista de diccionarios 
     datos_filtrados=[]
@@ -166,98 +164,33 @@ def analisis_pacientes():
     return datos_filtrados 
     
 
-#poner lo de import funciones.py(estas van a ser las funciones que nosotras creamos para que quede mas prolijo)
 def analizar_ecg():
     resultados=[]
-    with open ("ecg_manifest.csv",'r',encoding='utf-8')as file: #abro el archivo para leerlo 
+    
+    with open ("C:\\users\\tiara\\Downloads\\facultad\\IRI\\IRI 2K25\\TP_IRI\\ecg_signals\\ecg_manifest.csv",'r',encoding='utf-8-sig')as file: #abro el archivo para leerlo 
         lector=csv.DictReader(file)
         ecg_pacientes=list(lector)
+        lista_pacientes=analisis_pacientes()
         for fila in ecg_pacientes: 
-            with open(fila['ecg_file'],'r',encoding='utf-8')as archivo_ecg:
-                lector=csv.reader(archivo_ecg)
-                lista_senales=[float(linea[0])for linea in lector]
-                maximo=max(lista_senales)
-                minimo=min(lista_senales)
-                promedio=sum(lista_senales)/len(lista_senales)
-                resultados.append({'paciente_id':fila['paciente_id'],'maximo':maximo,'minimo':minimo,'promedio':promedio})
-    return resultados 
+            for i in lista_pacientes: 
+                if i['paciente_id']==fila['paciente_id']:
+                    aux=fila["ecg_file"]
+                    path= f"C:\\users\\tiara\\Downloads\\facultad\\IRI\\IRI 2K25\\TP_IRI\\ecg_signals\\{aux}" 
+                    with open(path,'r',encoding='utf-8-sig')as archivo_ecg:
+                        lector=csv.reader(archivo_ecg)
+                        lista_senales=[float(linea[0])for linea in lector]
+                        maximo=max(lista_senales)
+                        minimo=min(lista_senales)
+                        promedio=sum(lista_senales)/len(lista_senales)
+                        resultados.append({'paciente_id':fila['paciente_id'],'maximo':maximo,'minimo':minimo,'promedio':promedio})
+                    break; 
+        return resultados 
 
 
-# ------------------ GRAFICO DE BARRAS ------------------
-# Crear un DataFrame con los pacientes validados
-
-datos_filtrados=analisis_pacientes()
+# Crear el DataFrame con los datos de los pacientes procesados
+datos_filtrados = analisis_pacientes()
 df = pd.DataFrame(datos_filtrados)
 
-# Aplicar la clasificación del triage y guardarla en una nueva columna
-df['Triage'] = df.apply(clasificar_triage, axis=1)
-
-print(df[['temperatura_C', 'frecuencia_cardiaca_lpm', 'nivel_oxigeno_perc', 'PAM', 'IMC']].head())
-print(df['Triage'].value_counts())
-
-df.loc[0, ['frecuencia_cardiaca_lpm', 'PAM']] = 0  # Forzamos el primer paciente como muerto
-df['Triage'] = df.apply(clasificar_triage, axis=1)
-
-# Contar la cantidad de pacientes por color y ordenarlos del más grave al más leve
-orden_colores = ["negro", "rojo", "naranja", "amarillo", "verde", "azul"]
-conteo_colores = df['Triage'].value_counts().reindex(orden_colores, fill_value=0)
-
-# Crear el mapa de colores
-colores_map = {
-    "negro": "black",
-    "rojo": "red",
-    "naranja": "orange",
-    "amarillo": "yellow",
-    "verde": "green",
-    "azul": "blue"
-}
-
-plt.figure(figsize=(8,5))
-plt.bar(conteo_colores.index,conteo_colores.values,color=[colores_map.get(c.lower(), "gray") for c in conteo_colores.index])
-plt.title('Cantidad de pacientes por categoría de triage')
-plt.xlabel('Categoría')
-plt.ylabel('Cantidad de pacientes')
-plt.grid(axis='y', linestyle="--", alpha=0.6)
-plt.show()
-
-# ------------------ GRAFICO DE LINEAS (ECG) ------------------
-
-# Analizar los archivos ECG y guardarlos en una lista
-ecg_pacientes = analizar_ecg()
-
-# Ejemplo: mostrar la señal ECG de un paciente específico
-paciente_id_elegido=input("Ingrese el ID del paciente para ver su ECG (ej. P0001): ")
-
-#buscar el archivo ECG correspondiente al paciente elegido
-paciente_ecg=next((fila for fila in ecg_pacientes if fila['paciente_id']==paciente_id_elegido))
-
-if paciente_ecg:
-   ecg_file=paciente_ecg['ecg_file']
-   senal=np.loadtxt(ecg_file)
-   plt.figure(figsize=(10,4))
-   plt.plot(senal, color='violeta')
-   plt.title(f'señal ecg del paciente {paciente_id_elegido}')
-   plt.xlabel('tiempo (muestras)')
-   plt.ylabel('voltaje(mv)')
-   plt.show()
-else:
-    print("no se encontro el archivo ecg para ese paciente")
-
-# ------------------ GRAFICO DE DISPERSION ------------------
-
-colores_map["negro","rojo","naranja","amarillo","verde","azul"]
-
-plt.figure(figsize=(8,6))
-for color in df['triage'].unique():
-    subset=df[df['triage']==color]
-    plt.scatter(subset['IMC'],subset['PAM'], c=colores_map[color], label=color, alpha=0.07)
-
-plt.title('Relación entre IMC y PAM por Clasificación de Triage')
-plt.xlabel('IMC (Índice de Masa Corporal)')
-plt.ylabel('PAM (Presión Arterial Media)')
-plt.legend()
-plt.grid(True, linestyle='--', alpha=0.5)
-plt.show()
 
 #  ------------------ BUSQUEDA DE PACIENTES ------------------
 busqueda = input("Ingrese el ID o Apellido del paciente: ").strip().lower()
@@ -272,17 +205,7 @@ else:
 
 
 
-def main():
-    ventana=tk.TK()
-    ventana.title("Reporte de datos")
-    ventana.geometry("1300x800")
-    etiqueta=tk.Label(ventana,text='Hola, buen dia!')
-    boton=tk.Button(ventana,text='Presione para ver los datos de los pacientes')
-    datos_pacientes=analisis_pacientes() 
-    boton.pack()
-    for fila in datos_pacientes: 
-        print()
-    ventana.mainloop()
+
 
 
        
